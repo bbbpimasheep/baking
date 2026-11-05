@@ -1,0 +1,86 @@
+# MLS-MPM configuration. Save as UTF-8 and restart the program after editing.
+# Syntax: [section] and parameter_name = value. Comments start with # or ;.
+# SI units: length m, time s, mass kg, stress Pa, velocity m/s, density kg/m^3.
+# Write vectors as x, y, z and boolean values as true / false.
+# Names are case-sensitive. Omitted settings use defaults; unknown names fail.
+# Physical settings are read exclusively from this file.
+# CLI overrides are limited to GUI/headless mode, steps, report interval, output and log path.
+
+[material]
+model = ding2019                                                # neo_hookean or ding2019.
+density = 1200.0                                                # Reference density.
+young_modulus = 12000.0                                         # Young's modulus; higher stiffness usually requires a smaller time_step.
+poisson_ratio = 0.45                                            # Poisson's ratio; must satisfy -1 < nu < 0.5.
+
+[simulation]
+grid_resolution = 40                                            # Background grid nodes per axis.
+grid_spacing = 0.025                                            # Grid spacing.
+grid_origin = 0.0, 0.0, 0.0                                     # Background grid origin.
+time_step = 0.0001                                              # Physical duration of one simulation substep.
+gravity = 0.0, -9.81, 0.0                                       # Gravity acceleration; use 0, 0, 0 to disable.
+boundary_cells = 3                                              # Fixed frictionless boundary layer width; at least 2 nodes.
+steps_per_frame = 40                                            # Physical substeps per displayed frame.
+device_name = auto                                              # auto / cpu / cuda:0.
+cfl_limit = 0.4                                                 # Stability check threshold in (0, 0.4].
+
+[initial]
+
+[sampling]
+particles_per_tet = 0                                           # 0 enables automatic sampling; a positive integer fixes the count per tet.
+target_particles_per_cell = 8                                   # Automatic sampling density target; at least 4 particles per tet.
+random_seed = 42                                                # Random sampling seed.
+max_particles = 500000                                          # Particle count limit to bound memory use.
+
+[mesh]
+mesh_path = ../assets/sphere_r0p1_coarse.npz                    # Radius 0.1 m; 8 subdivisions. Original fine mesh: assets/sphere_r0p1.npz.
+mesh_scale = 1.0                                                # Coordinate scale; 0.001 converts mm to m. Also applies to the demo.
+mesh_translation = 0.5, 0.151, 0.5                              # Sphere bottom y=0.051 m; 1 mm above the nominal floor y=0.05 m.
+demo_subdivisions = 6                                           # Demo cube subdivisions per axis; unused for external meshes.
+
+[run]
+headless = false                                                # false opens Polyscope; true runs without a window.
+steps = 3000                                                    # Total simulation steps in headless mode.
+snapshot_interval = 0                                           # Buffer full states every N steps, save only at exit; 0 disables.
+report_interval = 500                                           # Headless steps between state checks and statistics reports.
+log_path = ../outputs/test_case                                 # Results root; a unique directory is created at simulation end.
+output_path =                                                   # Empty disables automatic saving; example: outputs/final_state.npz.
+# Relative mesh_path and output_path values are resolved from this file's directory.
+# Material model is selected in [material]. Domain boundary: frictionless velocity projection.
+
+
+[ding]
+yield_stress = 1000.0                                           # Base Kirchhoff yield stress, Pa. Illustrative, not calibrated.
+viscosity = 1.0e10                                              # Penalty viscosity, Pa^3 s for the paper's f in Pa^2; finite and positive.
+porosity = 0.1                                                  # Initial gas-void fraction n0; updated by det(Fp)-1+n0. Coupled to gas when gas_enabled=true.
+temperature_enabled = true                                      # true enables Section 5.3.2; false retains fixed eta and yield_stress.
+temperature_knots_k = 278.15, 293.15, 313.15, 353.15            # Four material knots: fridge, room, fat melting, gelatinization, K.
+yield_factors = 1.5, 1.0, 0.2, 2.0                              # Multiply base yield_stress at each material knot.
+viscosity_factors = 1.5, 1.0, 0.2, 0.05                         # Multiply base penalty viscosity; positive finite values, any trend allowed.
+# Temperature knots and factors are illustrative choices, not calibrated paper data.
+# At/above the fourth material knot, eta and yield_stress freeze permanently, even after cooling.
+# Elastic moduli stay fixed. Thermal prestress c=0; optional heat/water solve is configured below.
+
+gas_enabled = true                                              # Enable Section 5.4 gas; requires positive initial porosity.
+gas_initial_pressure_pa = 101325.0                              # Absolute initial pore pressure, Pa; defines N0 per reference volume.
+gas_ambient_pressure_pa = 101325.0                              # External pressure traction, Pa; 0 reproduces a vacuum exterior.
+gas_production_rate = 0.001                                     # Chemical source alpha, mol/(kg s); illustrative, not yeast kinetics.
+gas_reaction_temperature_k = 313.15                             # Gaussian chemical-source peak, K; illustrative.
+gas_reaction_width_k = 15.0                                     # Gaussian temperature width, K; no finite-reactant depletion.
+
+[transport]
+enabled = true                                                  # Enable the local heat and water solver.
+initial_temperature_k = 293.15                                  # Initial particle temperature, K.
+water_enabled = true                                            # Enable water diffusion, exposed-surface loss and saturation stress.
+oven_temperature_k = 453.15                                     # Fixed oven air temperature, K (180 deg C).
+conductivity = 0.4                                              # Effective thermal conductivity, W/(m K); illustrative.
+specific_heat = 2800.0                                          # Effective heat capacity, J/(kg K); fixed initial wet-mass capacity.
+heat_transfer = 20.0                                            # Air convection coefficient, W/(m^2 K).
+tray_temperature_k = 453.15                                     # Fixed tray temperature, K.
+tray_heat_transfer = 100.0                                      # Contact convection coefficient, W/(m^2 K).
+contact_distance = 0.005                                        # Downward boundary faces this close to the floor count as tray contact, m.
+initial_saturation = 0.4                                        # Initial water volume / mixture volume, dimensionless; not gas porosity.
+water_density = 1000.0                                          # Intrinsic liquid water density, kg/m^3.
+water_diffusivity = 1.0e-10                                     # Paper K in q_w=-K*T*rho_w*grad(s), m^2/(K s).
+surface_water_loss = 1.0e-7                                     # Paper beta_w in outward flux beta_w*T*s, kg/(m^2 s K).
+water_stress = 10000.0                                          # Paper c_hat in sigma_w=-c_hat*(s-s0)*I, Pa.
+latent_heat = 0.0                                               # Optional added evaporation cooling, J/kg; 0 matches absence in paper heat PDE.

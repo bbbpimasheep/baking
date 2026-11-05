@@ -1,0 +1,5 @@
+numpy>=1.26,<3
+warp-lang==1.18.0
+polyscope==2.6.1
+meshio==5.3.5
+pytest>=8,<10

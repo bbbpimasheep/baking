@@ -1,0 +1,86 @@
+# run.steps counts baking steps; settling steps are additional. State is continuous across stages.
+# Coupled heat, water, gas and Ding solid configuration. Values use SI units.
+# All supported settings are explicit; illustrative values are not calibrated baking data.
+# Paths are relative to this file. Results and queued snapshots are saved only at exit.
+# Material parameters freeze irreversibly at the fourth temperature knot.
+# Existing physical values are preserved, including any values rejected by validation.
+
+[material]
+density = 1150.0                                                # Initial total wet-mixture density, kg/m^3; must exceed water_density*initial_saturation.
+young_modulus = 1.25e5                                        # Young's modulus; higher stiffness usually requires a smaller time_step.
+poisson_ratio = 0.485                                           # Poisson's ratio; must satisfy -1 < nu < 0.5.
+model = ding2019                                                # neo_hookean or ding2019.
+
+[simulation]
+grid_resolution = 40                                            # Background grid nodes per axis.
+grid_spacing = 0.025                                            # Grid spacing.
+grid_origin = 0.0, 0.0, 0.0                                     # Background grid origin.
+time_step = 0.0001                                              # Physical duration of one simulation substep.
+gravity = 0.0, -9.81, 0.0                                       # Gravity acceleration; use 0, 0, 0 to disable.
+boundary_cells = 3                                              # Fixed frictionless boundary layer width; at least 2 nodes.
+steps_per_frame = 40                                            # Physical substeps per displayed frame.
+device_name = cuda:0                                            # auto / cpu / cuda:0.
+cfl_limit = 0.4                                                 # Stability check threshold in (0, 0.4].
+
+[sampling]
+particles_per_tet = 4                                           # 0 enables automatic sampling; a positive integer fixes the count per tet.
+target_particles_per_cell = 8                                   # Automatic sampling target; unused when particles_per_tet > 0.
+random_seed = 42                                                # Random sampling seed.
+max_particles = 500000                                          # Particle count limit to bound memory use.
+
+[mesh]
+mesh_path = ../assets/sphere_gas_demo.npz                       # Radius 0.1 m; 8 subdivisions. Original fine mesh: assets/sphere_r0p1.npz.
+mesh_scale = 1.0                                                # Coordinate scale; 0.001 converts mm to m. Also applies to the demo.
+mesh_translation = 0.5000, 0.1501, 0.5000                       # Sphere bottom y=0.0501 m; 0.1 mm above the nominal floor y=0.05 m.
+demo_subdivisions = 6                                           # Built-in cube subdivisions; unused when mesh_path is set.
+
+[run]
+headless = true                                                 # false opens Polyscope; true runs without a window.
+steps = 100000                                                  # Baking steps only; settling steps are additional.
+snapshot_interval = 25000                                       # Buffer full states every N steps, save only at exit; 0 disables.
+report_interval = 10000                                         # Steps between checks in headless mode; results are printed/saved only at exit.
+output_path =                                                   # Optional extra final NPZ path; empty disables the extra copy.
+log_path = ../outputs/oven_baking                               # Results root; a unique directory is created at simulation end.
+
+[ding]
+yield_stress = 810.82                                           # Base Kirchhoff yield stress, Pa. Illustrative, not calibrated.
+viscosity = 1.5e6                                               # Penalty viscosity, Pa^3 s for the paper's f in Pa^2; finite and positive.
+porosity = 0.178                                                # Initial gas-void fraction n0; updated by det(Fp)-1+n0. Coupled to gas when gas_enabled=true.
+temperature_enabled = true                                      # true enables Section 5.3.2; false retains fixed eta and yield_stress.
+temperature_knots_k = 278.15, 300.15, 328.15, 353.15            # 5, 27, 55, 80 C: cold, reference, softening minimum, approximate set crumb.
+yield_factors = 1.5, 1.0, 0.5, 3.0                              # Multipliers of base yield_stress; linear interpolation between temperature knots.
+viscosity_factors = 1.5, 1.0, 0.5, 5.0                          # Uncalibrated Ding penalty factors: soften, then resist plastic flow during setting.
+# Trend reference: doi:10.1016/j.jfoodeng.2018.05.007; factors are modeling choices, not measured Pa^3 s data.
+# At fixed stress the yield-factor increase also reduces plastic flow; these two tables require joint calibration.
+# Fourth-knot factors freeze irreversibly; Young's modulus remains constant (no crust/drying stiffness model).
+gas_enabled = true                                              # Enable Section 5.4 gas; requires positive initial porosity.
+gas_initial_pressure_pa = 101325.0                              # Absolute initial pore pressure, Pa; defines N0 per reference volume.
+gas_ambient_pressure_pa = 101325.0                              # External pressure traction, Pa; 0 reproduces a vacuum exterior.
+gas_production_rate = 2.04e-5                                   # Chemical source alpha, mol/(kg s); illustrative, not yeast kinetics.
+gas_reaction_temperature_k = 318.15                             # Gaussian chemical-source peak, K; illustrative.
+gas_reaction_width_k = 15.42                                    # Gaussian temperature width, K; no finite-reactant depletion.
+
+[transport]
+enabled = true                                                  # Enable the local heat and water solver.
+initial_temperature_k = 300.15                                  # Initial particle temperature, K.
+settling_duration_s = 5.0                                       # Maximum rest time in auto mode, s; timeout stops without starting baking.
+settling_auto = true                                            # Detect quasi-static rest automatically; false uses fixed duration.
+settling_min_duration_s = 0.1                                   # Minimum elapsed rest before quiet confirmation can begin, s.
+settling_hold_duration_s = 0.1                                  # All criteria must hold continuously for this duration, s.
+settling_speed_tolerance = 0.001                                # Maximum particle speed tolerance, m/s.
+settling_rate_tolerance = 0.01                                  # Maximum strain and relative plastic-gradient rate tolerance, 1/s.
+
+water_enabled = true                                            # Enable water diffusion, exposed-surface loss and saturation stress.
+oven_temperature_k = 513.15                                     # Fixed oven air temperature, K; local dough temperature is solved.
+conductivity = 0.36                                             # Effective internal thermal conductivity, W/(m K).
+specific_heat = 2.83e3                                          # Effective specific heat, J/(kg K); initial particle heat capacity stays fixed.
+heat_transfer = 35.0                                            # Air-to-surface heat-transfer coefficient, W/(m^2 K).
+tray_temperature_k = 513.15                                     # Fixed tray temperature, K.
+tray_heat_transfer = 100.0                                      # Tray contact heat-transfer coefficient, W/(m^2 K).
+contact_distance = 0.001                                        # Downward boundary faces this close to the floor count as tray contact, m.
+initial_saturation = 0.5483                                     # Initial water volume / mixture volume, dimensionless; not gas porosity.
+water_density = 1000.0                                          # Intrinsic liquid water density, kg/m^3.
+water_diffusivity = 1.5e-10                                     # Paper K in q_w=-K*T*rho_w*grad(s), m^2/(K s).
+surface_water_loss = 5.0e-7                                     # Paper beta_w in outward flux beta_w*T*s, kg/(m^2 s K).
+water_stress = 10000.0                                          # Paper c_hat in sigma_w=-c_hat*(s-s0)*I, Pa.
+latent_heat = 2.26e6                                            # Optional added evaporation cooling, J/kg; 0 matches absence in paper heat PDE.

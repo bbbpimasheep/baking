@@ -1,0 +1,41 @@
+# Accelerated chemical-leavening workflow test, not calibrated baking or yeast kinetics.
+# Solid thermal parameter changes are disabled to isolate gas heating/source effects.
+# SI: m, kg, s, Pa, K, mol. Absolute gas pressure; ambient pressure is external traction.
+[material]
+model = ding2019
+density = 1200.0
+young_modulus = 12000.0
+poisson_ratio = 0.45
+[simulation]
+device_name = cuda:0
+time_step = 0.00002
+gravity = 0, 0, 0
+[mesh]
+mesh_path = ../assets/sphere_gas_demo.npz
+mesh_translation = 0.5, 0.5, 0.5
+[sampling]
+particles_per_tet = 4
+[run]
+headless = true
+steps = 25000
+report_interval = 100
+log_path = ../outputs/gas_heating
+[ding]
+yield_stress = 500.0
+viscosity = 1.0e9
+porosity = 0.2
+temperature_enabled = false
+gas_enabled = true
+gas_initial_pressure_pa = 101325.0
+gas_ambient_pressure_pa = 101325.0
+gas_production_rate = 0.005
+gas_reaction_temperature_k = 333.15
+gas_reaction_width_k = 15.0
+
+[transport]
+enabled = true
+water_enabled = false
+initial_temperature_k = 333.15
+conductivity = 0.0
+heat_transfer = 0.0
+tray_heat_transfer = 0.0

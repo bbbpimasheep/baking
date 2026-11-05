@@ -1,0 +1,44 @@
+# Generated simulation outputs and temporary files
+/outputs/
+/tmp/
+*.log
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Python virtual environments and build artifacts
+.venv/
+venv/
+env/
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Local secrets (keep example configuration files)
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Local viewer state
+/.polyscope.ini
+/imgui.ini
+
+# Editor and operating-system files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
